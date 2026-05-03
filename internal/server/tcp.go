@@ -1,8 +1,8 @@
 package server
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/faiyaz032/NotRedis/internal/protocol"
@@ -39,12 +39,28 @@ func (s *TCPServer) Run() error {
 
 func (s *TCPServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
-	scanner := bufio.NewScanner(conn)
 
-	for scanner.Scan() {
-		response := protocol.Execute(scanner.Text(), s.store)
-		if _, err := conn.Write([]byte(response)); err != nil {
-			return
+	reader := protocol.NewRESPReader(conn)
+
+	for {
+		value, err := reader.ReadValue()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println("Error reading from client: ", err.Error())
+			break
+		}
+
+		if value.Type != protocol.Array {
+			fmt.Println("Invalid request: expected array")
+			continue
+		}
+
+		response := protocol.Execute(value.Array, s.store)
+		if _, err := conn.Write(response.Marshal()); err != nil {
+			fmt.Println("Error writing to client: ", err.Error())
+			break
 		}
 	}
 }
