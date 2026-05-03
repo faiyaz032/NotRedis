@@ -7,17 +7,20 @@ import (
 
 	"github.com/faiyaz032/NotRedis/internal/protocol"
 	"github.com/faiyaz032/NotRedis/internal/store"
+	"github.com/faiyaz032/NotRedis/internal/wal"
 )
 
 type TCPServer struct {
 	addr  string
 	store *store.Store
+	wal   *wal.WAL
 }
 
-func NewTCPServer(addr string, st *store.Store) *TCPServer {
+func NewTCPServer(addr string, st *store.Store, w *wal.WAL) *TCPServer {
 	return &TCPServer{
 		addr:  addr,
 		store: st,
+		wal:   w,
 	}
 }
 
@@ -57,7 +60,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			continue
 		}
 
-		response := protocol.Execute(value.Array, s.store)
+		response := protocol.Execute(value.Array, s.store, s.wal)
 		if _, err := conn.Write(response.Marshal()); err != nil {
 			fmt.Println("Error writing to client: ", err.Error())
 			break

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/faiyaz032/NotRedis/internal/store"
+	"github.com/faiyaz032/NotRedis/internal/wal"
 )
 
 const (
@@ -54,7 +55,7 @@ func (v Value) Marshal() []byte {
 	}
 }
 
-func Execute(args []Value, st *store.Store) Value {
+func Execute(args []Value, st *store.Store, w *wal.WAL) Value {
 	if len(args) == 0 {
 		return Value{Type: Error, Str: "ERR empty command"}
 	}
@@ -64,6 +65,14 @@ func Execute(args []Value, st *store.Store) Value {
 	case "SET":
 		if len(args) < 3 {
 			return Value{Type: Error, Str: "ERR wrong number of arguments for 'set' command"}
+		}
+		entry := wal.Entry{
+			Command: "SET",
+			Key:     args[1].Bulk,
+			Value:   args[2].Bulk,
+		}
+		if err := w.Append(entry); err != nil {
+			return Value{Type: Error, Str: "ERR failed to append to WAL"}
 		}
 		st.Set(args[1].Bulk, args[2].Bulk)
 		return Value{Type: SimpleString, Str: "OK"}

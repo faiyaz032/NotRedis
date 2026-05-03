@@ -25,3 +25,9 @@ func (s *Store) Get(key string) (string, bool) {
 	value, ok := s.data[key]
 	return value, ok
 }
+
+func (s *Store) Apply(key, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data[key] = value
+}
